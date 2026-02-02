@@ -28,16 +28,16 @@ def call_notion_api(method, url, data=None):
         print(f"Error: {response.status_code}, {response.text}")
     return response.json()
 
-def update_shibuya_driving_commute():
+def update_uga_commute():
     # 1. 准备时间参数：设定为明天早上 8:00 出发，模拟早高峰开车
     now = datetime.datetime.now()
     dept_time = datetime.datetime(now.year, now.month, now.day, 8, 0) + timedelta(days=1)
     
-    # 2. 过滤器：抓取【通勤时间】为空，且【纬度】【经度】不为空的数据
+    # 2. 过滤器：抓取【宇贺时间】为空，且【纬度】【经度】不为空的数据
     filter_data = {
         "filter": {
             "and": [
-                {"property": "通勤时间", "number": {"is_empty": True}},
+                {"property": "宇贺时间", "number": {"is_empty": True}},
                 {"property": "纬度", "number": {"is_not_empty": True}},
                 {"property": "经度", "number": {"is_not_empty": True}}
             ]
@@ -62,7 +62,7 @@ def update_shibuya_driving_commute():
         print("🎉 没有需要计算的数据。")
         return
 
-    print(f"🔎 找到 {len(all_pages)} 条房源，开始计算开车到涩谷的时间...")
+    print(f"🔎 找到 {len(all_pages)} 条房源，开始计算开车到新横浜的时间...")
 
     for page in all_pages:
         page_id = page["id"]
@@ -82,7 +82,7 @@ def update_shibuya_driving_commute():
             # 3. 使用经纬度元组作为起点计算开车路径
             directions_result = gmaps.directions(
                 origin=(lat, lng),  # 直接传入元组
-                destination="涩谷站", # 也可以传入 "35.6580,139.7016"
+                destination="〒222-0033 神奈川県横浜市港北区新横浜３丁目１６−１２", 
                 departure_time=dept_time,
                 mode="driving",
                 traffic_model="best_guess", # 考虑实时路况预测
@@ -93,14 +93,14 @@ def update_shibuya_driving_commute():
                 # duration_in_traffic 是包含路况预估的时间
                 leg = directions_result[0]['legs'][0]
                 if 'duration_in_traffic' in leg:
-                    shibuya_min = (leg['duration_in_traffic']['value'] + 59) // 60
+                    uga_min = (leg['duration_in_traffic']['value'] + 59) // 60
                 else:
-                    shibuya_min = (leg['duration']['value'] + 59) // 60
+                    uga_min = (leg['duration']['value'] + 59) // 60
                 
-                print(f"   ⏱️ 开车预计: {shibuya_min} 分钟")
+                print(f"   ⏱️ 开车预计: {uga_min} 分钟")
                 
                 # 4. 更新 Notion
-                update_data = {"properties": {"通勤时间": {"number": shibuya_min}}}
+                update_data = {"properties": {"宇贺时间": {"number": uga_min}}}
                 call_notion_api("PATCH", f"https://api.notion.com/v1/pages/{page_id}", update_data)
             else:
                 print(f"   ⚠️ 无法规划路线: {name}")
@@ -109,4 +109,4 @@ def update_shibuya_driving_commute():
             print(f" ❌ [异常]: {name} -> {e}")
 
 if __name__ == "__main__":
-    update_shibuya_driving_commute()
+    update_uga_commute()
